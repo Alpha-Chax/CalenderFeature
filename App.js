@@ -15,7 +15,7 @@ export default function App() {
 
   return (
     <NavigationContainer>
-     <Stack.Navigator initialRouteName='CalenderPicker'>
+     <Stack.Navigator initialRouteName='Home'>
       <Stack.Screen name='Home' component={Home}/>
       <Stack.Screen name='CalenderPicker' component={CalenderPicker}/>
       <Stack.Screen name='RnCalender' component={RnCalendar} />

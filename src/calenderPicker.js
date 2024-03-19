@@ -1,16 +1,36 @@
+import { useNavigation } from "@react-navigation/native";
 import React, { useState, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from "react-native";
 
-const CustomCalendar = () => {
+const CustomCalendar = ({route}) => {
   const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1); // Get the next date
   const startMonth = new Date();
   const numMonthsToRender = 13; // Render one full year
-
+  const navigation = useNavigation();
   const [visibleMonths, setVisibleMonths] = useState(() =>
     generateMonthData(startMonth, numMonthsToRender)
   );
-  const [selectedStartDate, setSelectedStartDate] = useState(null);
-  const [selectedEndDate, setSelectedEndDate] = useState(null);
+ 
+  const [fromCheckIn, setFromCheckIn] = useState(route.params.fromCheckIn || false);
+  const [fromCheckOut, setFromCheckOut] = useState(route.params.fromCheckOut || false);
+
+  // Handle pressing the "Departure" button
+  const handleDeparturePress = () => {
+    setFromCheckIn(true);
+    setFromCheckOut(false);
+  };
+
+  // Handle pressing the "Return" button
+  const handleReturnPress = () => {
+    setFromCheckIn(false);
+    setFromCheckOut(true);
+  };
+ 
+  const { departureDate, arrivalDate } = route.params || {};
+  const [selectedStartDate, setSelectedStartDate] = useState(arrivalDate? arrivalDate : today.toISOString().substring(0, 10));
+  const [selectedEndDate, setSelectedEndDate] = useState(departureDate? departureDate : tomorrow.toISOString().substring(0, 10)); 
 
   function generateMonthData(startMonth, numMonths) {
     const months = [];
@@ -45,11 +65,11 @@ const CustomCalendar = () => {
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
     
-    return months; // Remove filtering for months beyond the current year
+    return months; 
   }
   
   const getWeekdayOffset = (firstDayOfYear) => {
-    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const weekdays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', ];
     const firstDayIndex = firstDayOfYear.getDay(); // 0 for Sunday, 1 for Monday, etc.
     return weekdays.slice(firstDayIndex).concat(weekdays.slice(0, firstDayIndex));
   };
@@ -69,6 +89,8 @@ const CustomCalendar = () => {
       const isSelected = startDate && endDate && day >= startDate && day <= endDate;
       const isBetween = startDate && endDate && day > startDate && day < endDate;
       const isDisabled = !isToday && day < today;
+      const isSelectedPreviously = departureDate && arrivalDate && day >= new Date(departureDate) && day <= new Date(arrivalDate);
+      const isBetweenSelectedDates = startDate && endDate && !isSelected && day > startDate && day < endDate;
   
       return (
         <TouchableOpacity
@@ -78,21 +100,23 @@ const CustomCalendar = () => {
             isStartDate && styles.start,
             isEndDate && styles.end,
             isSelected && !isStartDate && !isEndDate && styles.between,
+            isSelectedPreviously && !isSelected && styles.between, 
+            isBetweenSelectedDates && { backgroundColor: '#87CEFA' }, 
             isDisabled && styles.disabled,
           ]}
           onPress={() => handleDatePress(day)}
           disabled={isDisabled}
         >
-          <Text style={[styles.dateText, (isStartDate || isEndDate) && { color: 'white' }]}>
+          <Text style={[styles.dateText, (isStartDate || isEndDate || isSelectedPreviously) && { color: 'white' }]}>
             {day.getDate()}
           </Text>
         </TouchableOpacity>
       );
     },
-    [today, selectedStartDate, selectedEndDate, handleDatePress]
+    [today, selectedStartDate, selectedEndDate, departureDate, arrivalDate, handleDatePress]
   );
   
-
+  
   const handleDatePress = (day) => {
     // Get the time zone offset in minutes
     const timeZoneOffset = day.getTimezoneOffset();
@@ -100,19 +124,33 @@ const CustomCalendar = () => {
     // Adjust the selected date by adding the time zone offset
     const selectedDay = new Date(day.getTime() - timeZoneOffset * 60000);
   
-    // Convert the adjusted date to ISO string
+   
     const dayISOString = selectedDay.toISOString();
   
-    if (!selectedStartDate || dayISOString < selectedStartDate) {
+    // If the departure button is active, update the departure date
+    if (fromCheckIn) {
       setSelectedStartDate(dayISOString);
       setSelectedEndDate(null);
-    } else if (!selectedEndDate || dayISOString > selectedEndDate) {
-      setSelectedEndDate(dayISOString);
-    } else {
-      setSelectedStartDate(dayISOString);
-      setSelectedEndDate(null);
+      setFromCheckOut(true); 
+      setFromCheckIn(false); 
+    } else if (fromCheckOut) { 
+      if (new Date(dayISOString) < new Date(selectedStartDate)) {
+        // If the selected return date is before the departure date,
+        // update the departure date to the selected return date
+        setSelectedStartDate(dayISOString);
+        setSelectedEndDate(null); 
+      } else {
+        setSelectedEndDate(dayISOString);
+      }
+      setFromCheckIn(true); 
+      setFromCheckOut(false); 
     }
   };
+  
+  
+  
+  
+  
 
   // Fetch the 1st day of the year
   const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
@@ -125,7 +163,7 @@ const CustomCalendar = () => {
       <View style={styles.mainButtonContainer}>
         <View style={styles.buttonContainer}>
           <Text style={styles.buttonLabel}>Departure</Text>
-          <TouchableOpacity style={styles.roundedButton}>
+          <TouchableOpacity style={[styles.roundedButton,  fromCheckIn && styles.selectedButton]} onPress={handleDeparturePress}>
             <Text style={styles.buttonText}>
               {selectedStartDate ? selectedStartDate.substring(0, 10) : "Select"}
             </Text>
@@ -134,7 +172,7 @@ const CustomCalendar = () => {
 
         <View style={styles.buttonContainer}>
           <Text style={styles.buttonLabel}>Return</Text>
-          <TouchableOpacity style={styles.roundedButton}>
+          <TouchableOpacity style={[styles.roundedButton, fromCheckOut && styles.selectedButton]}   onPress={handleReturnPress}>
             <Text style={styles.buttonText}>
               {selectedEndDate ? selectedEndDate.substring(0, 10) : "Select"}
             </Text>
@@ -167,6 +205,48 @@ const CustomCalendar = () => {
         )}
         showsVerticalScrollIndicator={false}
       />
+       {/* Bottom confirm button------ */}
+
+       {selectedEndDate && (
+        <View>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              navigation.navigate({
+                name: 'Home',
+                params: {
+                  arrivalDate: selectedStartDate ? selectedStartDate.substring(0, 10) : null,
+                  departureDate: selectedEndDate ? selectedEndDate.substring(0, 10) : null,
+                },
+                merge: true,
+              });
+            }}
+            style={{
+              backgroundColor: '#053250',
+              borderWidth: 1,
+              borderRadius: 20,
+              width: 280,
+              height: 50,
+              zIndex: 10,
+              position: 'absolute',
+              bottom: 15,
+              justifyContent: 'center',
+              alignSelf: 'center',
+            }}>
+            <Text
+              style={{
+                textAlign: 'center',
+                fontSize: 12,
+                color: '#fff',
+                fontSize: 15,
+              }}>
+              Confirm
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Bottom confirm button------ */}
     </View>
   );
 };
@@ -194,7 +274,7 @@ const styles = StyleSheet.create({
     color: "grey",
   },
   roundedButton: {
-    backgroundColor: "#33a4ea",
+    backgroundColor: "#949494",
     borderRadius: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
@@ -261,6 +341,9 @@ const styles = StyleSheet.create({
     height: 40,
     backgroundColor: "transparent",
     width: 46.5
+  },
+  selectedButton: {
+    backgroundColor: '#053250',
   },
 });
 
