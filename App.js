@@ -8,6 +8,7 @@ import CalenderPicker from './src/calenderPicker';
 import RnRangePicker from './src/rnRangePicker';
 import RndateRangePicker from './src/rndateRangePicker';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HighlightedCalendar from './src/HighlightedCalender';
 
 export default function App() {
 
@@ -21,6 +22,7 @@ export default function App() {
       <Stack.Screen name='RnCalender' component={RnCalendar} />
       <Stack.Screen name='RangePicker' component={RnRangePicker}/>
       <Stack.Screen name='DateRangePicker' component={RndateRangePicker}/>
+      <Stack.Screen name='HighlightedCalender' component={HighlightedCalendar}/>
 
      </Stack.Navigator>
     </NavigationContainer>
