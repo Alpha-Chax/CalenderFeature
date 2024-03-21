@@ -9,12 +9,51 @@ const CustomCalendar = ({route}) => {
   const startMonth = new Date();
   const numMonthsToRender = 13; // Render one full year
   const navigation = useNavigation();
-  const [visibleMonths, setVisibleMonths] = useState(() =>
-    generateMonthData(startMonth, numMonthsToRender)
-  );
- 
+
+  const [selectedLanguage, setSelectedLanguage] = useState(route.params.language || 'English');
   const [fromCheckIn, setFromCheckIn] = useState(route.params.fromCheckIn || false);
   const [fromCheckOut, setFromCheckOut] = useState(route.params.fromCheckOut || false);
+
+//  const ArabicMonthNames = [
+//     'كانُون الثانِي',
+//     'شُباط',
+//     'آذار',
+//     'نَيْسان',
+//     'أَيّار',
+//     'حَزِيران',
+//     'تَمُّوز',
+//     'آب',
+//     'أَيْلُول',
+//     'تِشْرِين الْأَوَّل',
+//     'شهر نوفمبر',
+//     'كانُون الْأَوَّل',
+//   ];
+
+  const ArabicWeekdays =  [
+    'السبت',
+    'الأحد',
+    'الاثنين',
+    'يوم الثلاثاء',
+    'الأربعاء',
+    'يوم الخميس',
+    'جمعة',
+  ]
+
+  // const getMonthName = (monthIndex) => {
+  //   if (selectedLanguage === 'Arabic') {
+  //     return ArabicMonthNames[monthIndex];
+  //   } else {
+  //     return new Date(2000, monthIndex).toLocaleString('en-us', { month: 'long' });
+  //   }
+  // };
+
+  const getWeekdayName = (weekdayIndex) => {
+    if (selectedLanguage === 'Arabic') {
+      return ArabicWeekdays[weekdayIndex];
+    } else {
+      return new Date(2000, 0, weekdayIndex + 1).toLocaleString('en-us', { weekday: 'long' });
+    }
+  };
 
   // Handle pressing the "Departure" button
   const handleDeparturePress = () => {
@@ -28,31 +67,66 @@ const CustomCalendar = ({route}) => {
     setFromCheckOut(true);
   };
  
-  const { departureDate, arrivalDate } = route.params || {};
-  const [selectedStartDate, setSelectedStartDate] = useState(arrivalDate? arrivalDate : today.toISOString().substring(0, 10));
-  const [selectedEndDate, setSelectedEndDate] = useState(departureDate? departureDate : tomorrow.toISOString().substring(0, 10)); 
+  const { returnDate, DepartureDate } = route.params || {};
+  const [selectedStartDate, setSelectedStartDate] = useState(DepartureDate? DepartureDate : today.toISOString().substring(0, 10));
+  const [selectedEndDate, setSelectedEndDate] = useState(returnDate? returnDate : tomorrow.toISOString().substring(0, 10)); 
 
-  function generateMonthData(startMonth, numMonths) {
+  const generateMonthData = (startMonth, numMonths, selectedLanguage) => {
     const months = [];
     let currentDate = new Date(startMonth);
-    
-    for (let i = 0; i < numMonths; i++) { // Adjust loop condition to strictly less than numMonths
+  
+    // Function to get month name based on language
+    const getMonthName = (monthIndex) => {
+      const ArabicMonthNames = [
+        'كانُون الثانِي',
+        'شُباط',
+        'آذار',
+        'نَيْسان',
+        'أَيّار',
+        'حَزِيران',
+        'تَمُّوز',
+        'آب',
+        'أَيْلُول',
+        'تِشْرِين الْأَوَّل',
+        'شهر نوفمبر',
+        'كانُون الْأَوَّل',
+      ];
+  
+      const EnglishMonthNames = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+  
+      return selectedLanguage === 'Arabic' ? ArabicMonthNames[monthIndex] : EnglishMonthNames[monthIndex];
+    };
+  
+    for (let i = 0; i < numMonths; i++) {
       currentDate.setDate(1);
       const monthData = {
-        month: `${currentDate.toLocaleString("default", { month: "long" })} ${currentDate.getFullYear()}`,
+        month: getMonthName(currentDate.getMonth()) + " " + currentDate.getFullYear(), // Concatenate the year
         days: [],
       };
-    
+  
       const firstDayOfMonth = currentDate.getDay();
       const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    
+  
       for (let j = 0; j < firstDayOfMonth; j++) {
         monthData.days.push({
           date: null,
           key: `empty-${j}`,
         });
       }
-    
+  
       for (let j = 1; j <= lastDayOfMonth.getDate(); j++) {
         const day = new Date(currentDate.getFullYear(), currentDate.getMonth(), j);
         monthData.days.push({
@@ -60,19 +134,25 @@ const CustomCalendar = ({route}) => {
           key: day.toISOString(),
         });
       }
-    
+  
       months.push(monthData);
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
-    
-    return months; 
-  }
   
-  const getWeekdayOffset = (firstDayOfYear) => {
-    const weekdays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', ];
-    const firstDayIndex = firstDayOfYear.getDay(); // 0 for Sunday, 1 for Monday, etc.
-    return weekdays.slice(firstDayIndex).concat(weekdays.slice(0, firstDayIndex));
+    return months;
   };
+  
+  
+  const [visibleMonths, setVisibleMonths] = useState(() =>
+  generateMonthData(startMonth, numMonthsToRender, selectedLanguage)
+);
+  
+  
+const getWeekdayOffset = (firstDayOfYear) => {
+  const weekdays = selectedLanguage === 'Arabic' ? ArabicWeekdays : ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const firstDayIndex = firstDayOfYear.getDay();
+  return weekdays.slice(firstDayIndex).concat(weekdays.slice(0, firstDayIndex));
+};
 
   const renderDay = useCallback(
     ({ item: { date, key } }) => {
@@ -89,7 +169,7 @@ const CustomCalendar = ({route}) => {
       const isSelected = startDate && endDate && day >= startDate && day <= endDate;
       const isBetween = startDate && endDate && day > startDate && day < endDate;
       const isDisabled = !isToday && day < today;
-      const isSelectedPreviously = departureDate && arrivalDate && day >= new Date(departureDate) && day <= new Date(arrivalDate);
+      const isSelectedPreviously = returnDate && DepartureDate && day >= new Date(returnDate) && day <= new Date(DepartureDate);
       const isBetweenSelectedDates = startDate && endDate && !isSelected && day > startDate && day < endDate;
   
       return (
@@ -113,7 +193,7 @@ const CustomCalendar = ({route}) => {
         </TouchableOpacity>
       );
     },
-    [today, selectedStartDate, selectedEndDate, departureDate, arrivalDate, handleDatePress]
+     [today, selectedStartDate, selectedEndDate, returnDate, DepartureDate, handleDatePress]
   );
   
   
@@ -215,8 +295,8 @@ const CustomCalendar = ({route}) => {
               navigation.navigate({
                 name: 'Home',
                 params: {
-                  arrivalDate: selectedStartDate ? selectedStartDate.substring(0, 10) : null,
-                  departureDate: selectedEndDate ? selectedEndDate.substring(0, 10) : null,
+                  DepartureDate: selectedStartDate ? selectedStartDate.substring(0, 10) : null,
+                  returnDate: selectedEndDate ? selectedEndDate.substring(0, 10) : null,
                 },
                 merge: true,
               });
