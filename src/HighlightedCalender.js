@@ -53,7 +53,11 @@ const HighlightedCalendar = () => {
                       style={styles.backgroundImage}
                       imageStyle={{ borderRadius: 5 }}
                     >
-                      <Text style={[styles.dateText, day.isLowest && styles.lowestDateText]}>
+                      <Text style={[
+                        styles.dateText,
+                        day.highlighted && { color: '#318CE7', fontWeight: "bold" },
+                        day.isLowest && styles.lowestDateText
+                      ]}>
                         {day.date ? new Date(day.date).getDate() : ""}
                       </Text>
                       {day.isLowest && <Text style={styles.lowestLabelText}>Lowest</Text>}
@@ -127,7 +131,7 @@ const styles = StyleSheet.create({
   },
   lowestLabelText: {
     color: "green",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "bold",
   },
   backgroundImage: {
