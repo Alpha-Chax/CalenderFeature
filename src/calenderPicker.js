@@ -1,35 +1,22 @@
 import { useNavigation } from "@react-navigation/native";
-import React, { useState, useCallback } from "react";
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from "react-native";
-
-const CustomCalendar = ({route}) => {
+import React, { useState, useCallback, useRef } from "react";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, ImageBackground } from "react-native";
+import startDateIndicator from '../assets/Start.png';
+import endDateIndicator from '../assets/End.png';
+const CustomCalendar = ({ route }) => {
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1); // Get the next date
   const startMonth = new Date();
   const numMonthsToRender = 13; // Render one full year
+  const incrementMonths = 3;
   const navigation = useNavigation();
 
   const [selectedLanguage, setSelectedLanguage] = useState(route.params.language || 'English');
   const [fromCheckIn, setFromCheckIn] = useState(route.params.fromCheckIn || false);
   const [fromCheckOut, setFromCheckOut] = useState(route.params.fromCheckOut || false);
 
-//  const ArabicMonthNames = [
-//     'كانُون الثانِي',
-//     'شُباط',
-//     'آذار',
-//     'نَيْسان',
-//     'أَيّار',
-//     'حَزِيران',
-//     'تَمُّوز',
-//     'آب',
-//     'أَيْلُول',
-//     'تِشْرِين الْأَوَّل',
-//     'شهر نوفمبر',
-//     'كانُون الْأَوَّل',
-//   ];
-
-  const ArabicWeekdays =  [
+  const ArabicWeekdays = [
     'السبت',
     'الأحد',
     'الاثنين',
@@ -38,14 +25,6 @@ const CustomCalendar = ({route}) => {
     'يوم الخميس',
     'جمعة',
   ]
-
-  // const getMonthName = (monthIndex) => {
-  //   if (selectedLanguage === 'Arabic') {
-  //     return ArabicMonthNames[monthIndex];
-  //   } else {
-  //     return new Date(2000, monthIndex).toLocaleString('en-us', { month: 'long' });
-  //   }
-  // };
 
   const getWeekdayName = (weekdayIndex) => {
     if (selectedLanguage === 'Arabic') {
@@ -66,14 +45,18 @@ const CustomCalendar = ({route}) => {
     setFromCheckIn(false);
     setFromCheckOut(true);
   };
- 
+
   const { returnDate, DepartureDate } = route.params || {};
-  const [selectedStartDate, setSelectedStartDate] = useState(DepartureDate? DepartureDate : today.toISOString().substring(0, 10));
-  const [selectedEndDate, setSelectedEndDate] = useState(returnDate? returnDate : tomorrow.toISOString().substring(0, 10)); 
+  const [selectedStartDate, setSelectedStartDate] = useState(DepartureDate ? DepartureDate : today.toISOString().substring(0, 10));
+  const [selectedEndDate, setSelectedEndDate] = useState(returnDate ? returnDate : tomorrow.toISOString().substring(0, 10));
+  
+  const flatListRef = useRef(null);
 
   const generateMonthData = (startMonth, numMonths, selectedLanguage) => {
     const months = [];
     let currentDate = new Date(startMonth);
+    const endMonth = new Date(startMonth);
+    endMonth.setMonth(endMonth.getMonth() + numMonths);
   
     // Function to get month name based on language
     const getMonthName = (monthIndex) => {
@@ -110,14 +93,13 @@ const CustomCalendar = ({route}) => {
       return selectedLanguage === 'Arabic' ? ArabicMonthNames[monthIndex] : EnglishMonthNames[monthIndex];
     };
   
-    for (let i = 0; i < numMonths; i++) {
-      currentDate.setDate(1);
+    while (currentDate < endMonth) {
       const monthData = {
         month: getMonthName(currentDate.getMonth()) + " " + currentDate.getFullYear(), // Concatenate the year
         days: [],
       };
   
-      const firstDayOfMonth = currentDate.getDay();
+      const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
       const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
   
       for (let j = 0; j < firstDayOfMonth; j++) {
@@ -142,17 +124,35 @@ const CustomCalendar = ({route}) => {
     return months;
   };
   
-  
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      const { index } = viewableItems[0];
+      if (index + incrementMonths >= visibleMonths.length) {
+        // Render more months when approaching the end
+        setVisibleMonths((prevVisibleMonths) => [
+          ...prevVisibleMonths,
+          ...generateMonthData(
+            new Date(prevVisibleMonths[prevVisibleMonths.length - 1].month),
+            incrementMonths,
+            selectedLanguage
+          ),
+        ]);
+      }
+    }
+  }).current;
+
+  const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
+
   const [visibleMonths, setVisibleMonths] = useState(() =>
-  generateMonthData(startMonth, numMonthsToRender, selectedLanguage)
-);
-  
-  
-const getWeekdayOffset = (firstDayOfYear) => {
-  const weekdays = selectedLanguage === 'Arabic' ? ArabicWeekdays : ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-  const firstDayIndex = firstDayOfYear.getDay();
-  return weekdays.slice(firstDayIndex).concat(weekdays.slice(0, firstDayIndex));
-};
+    generateMonthData(startMonth, numMonthsToRender, selectedLanguage)
+  );
+
+
+  const getWeekdayOffset = (firstDayOfYear) => {
+    const weekdays = selectedLanguage === 'Arabic' ? ArabicWeekdays : ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const firstDayIndex = firstDayOfYear.getDay();
+    return weekdays.slice(firstDayIndex).concat(weekdays.slice(0, firstDayIndex));
+  };
 
   const renderDay = useCallback(
     ({ item: { date, key } }) => {
@@ -167,7 +167,6 @@ const getWeekdayOffset = (firstDayOfYear) => {
       const isStartDate = startDate && day.toDateString() === startDate.toDateString();
       const isEndDate = endDate && day.toDateString() === endDate.toDateString();
       const isSelected = startDate && endDate && day >= startDate && day <= endDate;
-      const isBetween = startDate && endDate && day > startDate && day < endDate;
       const isDisabled = !isToday && day < today;
       const isSelectedPreviously = returnDate && DepartureDate && day >= new Date(returnDate) && day <= new Date(DepartureDate);
       const isBetweenSelectedDates = startDate && endDate && !isSelected && day > startDate && day < endDate;
@@ -177,60 +176,64 @@ const getWeekdayOffset = (firstDayOfYear) => {
           style={[
             styles.dateItem,
             isToday && styles.today,
-            isStartDate && styles.start,
-            isEndDate && styles.end,
             isSelected && !isStartDate && !isEndDate && styles.between,
-            isSelectedPreviously && !isSelected && styles.between, 
-            isBetweenSelectedDates && { backgroundColor: '#87CEFA' }, 
+            isSelectedPreviously && !isSelected && styles.between,
+            isBetweenSelectedDates && { backgroundColor: '#87CEFA' },
             isDisabled && styles.disabled,
           ]}
           onPress={() => handleDatePress(day)}
           disabled={isDisabled}
         >
+          {isStartDate && <ImageBackground source={startDateIndicator} style={styles.dateImageStart} />}
+          {isEndDate && <ImageBackground source={endDateIndicator} style={styles.dateImageEnd} />}
           <Text style={[styles.dateText, (isStartDate || isEndDate || isSelectedPreviously) && { color: 'white' }]}>
             {day.getDate()}
           </Text>
         </TouchableOpacity>
       );
     },
-     [today, selectedStartDate, selectedEndDate, returnDate, DepartureDate, handleDatePress]
+    [today, selectedStartDate, selectedEndDate, returnDate, DepartureDate, handleDatePress]
   );
   
   
+  
+
+
+
   const handleDatePress = (day) => {
     // Get the time zone offset in minutes
     const timeZoneOffset = day.getTimezoneOffset();
-  
+
     // Adjust the selected date by adding the time zone offset
     const selectedDay = new Date(day.getTime() - timeZoneOffset * 60000);
-  
-   
+
+
     const dayISOString = selectedDay.toISOString();
-  
+
     // If the departure button is active, update the departure date
     if (fromCheckIn) {
       setSelectedStartDate(dayISOString);
       setSelectedEndDate(null);
-      setFromCheckOut(true); 
-      setFromCheckIn(false); 
-    } else if (fromCheckOut) { 
+      setFromCheckOut(true);
+      setFromCheckIn(false);
+    } else if (fromCheckOut) {
       if (new Date(dayISOString) < new Date(selectedStartDate)) {
         // If the selected return date is before the departure date,
         // update the departure date to the selected return date
         setSelectedStartDate(dayISOString);
-        setSelectedEndDate(null); 
+        setSelectedEndDate(null);
       } else {
         setSelectedEndDate(dayISOString);
       }
-      setFromCheckIn(true); 
-      setFromCheckOut(false); 
+      setFromCheckIn(true);
+      setFromCheckOut(false);
     }
   };
-  
-  
-  
-  
-  
+
+
+
+
+
 
   // Fetch the 1st day of the year
   const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
@@ -243,7 +246,7 @@ const getWeekdayOffset = (firstDayOfYear) => {
       <View style={styles.mainButtonContainer}>
         <View style={styles.buttonContainer}>
           <Text style={styles.buttonLabel}>Departure</Text>
-          <TouchableOpacity style={[styles.roundedButton,  fromCheckIn && styles.selectedButton]} onPress={handleDeparturePress}>
+          <TouchableOpacity style={[styles.roundedButton, fromCheckIn && styles.selectedButton]} onPress={handleDeparturePress}>
             <Text style={styles.buttonText}>
               {selectedStartDate ? selectedStartDate.substring(0, 10) : "Select"}
             </Text>
@@ -252,7 +255,7 @@ const getWeekdayOffset = (firstDayOfYear) => {
 
         <View style={styles.buttonContainer}>
           <Text style={styles.buttonLabel}>Return</Text>
-          <TouchableOpacity style={[styles.roundedButton, fromCheckOut && styles.selectedButton]}   onPress={handleReturnPress}>
+          <TouchableOpacity style={[styles.roundedButton, fromCheckOut && styles.selectedButton]} onPress={handleReturnPress}>
             <Text style={styles.buttonText}>
               {selectedEndDate ? selectedEndDate.substring(0, 10) : "Select"}
             </Text>
@@ -260,6 +263,8 @@ const getWeekdayOffset = (firstDayOfYear) => {
         </View>
       </View>
       <FlatList
+       ref={flatListRef}
+       initialNumToRender={2}
         data={visibleMonths}
         keyExtractor={(item, index) => `month-${index}`}
         renderItem={({ item }) => (
@@ -284,10 +289,12 @@ const getWeekdayOffset = (firstDayOfYear) => {
           </View>
         )}
         showsVerticalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewConfigRef.current}
       />
-       {/* Bottom confirm button------ */}
+      {/* Bottom confirm button------ */}
 
-       {selectedEndDate && (
+      {selectedEndDate && (
         <View>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -394,7 +401,7 @@ const styles = StyleSheet.create({
     color: "white",
   },
   between: {
-    backgroundColor: "#d2eef9",
+    backgroundColor: "#ffb0cc",
     color: "#1b4359",
   },
   dateText: {
@@ -424,6 +431,16 @@ const styles = StyleSheet.create({
   },
   selectedButton: {
     backgroundColor: '#053250',
+  },
+  dateImageStart: {
+    position: 'absolute',
+    width: "100%",
+    height: 40,   
+  },
+  dateImageEnd: {
+    position: 'absolute',
+    width: "100%",
+    height: 40,
   },
 });
 

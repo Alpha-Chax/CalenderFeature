@@ -28,10 +28,10 @@ const Home = ({ route }) => {
           title="CalenderPicker"
           onPress={() =>
             navigation.navigate({
-              name: 'CalenderPicker',
+              name: 'HighlightedCalender',
               params: {
-                DepartureDate: DepartureDate || '',
-                returnDate: returnDate || '',
+                // DepartureDate: DepartureDate || '',
+                // returnDate: returnDate || '',
                 language: language, 
               },
               merge: true,
