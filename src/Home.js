@@ -1,7 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Button, StyleSheet, Modal, DevSettings, I18nManager } from 'react-native';
-
 const Home = ({ route }) => {
   const navigation = useNavigation();
   const { returnDate, DepartureDate } = route.params || {};
@@ -14,6 +13,7 @@ const Home = ({ route }) => {
   const [language, setLanguage] = useState('English'); // State to manage selected language
   const [modalVisible, setModalVisible] = useState(false); // State to manage visibility of the language dropdown
 
+  
   const handleLanguageChange = (selectedLanguage) => {
     setLanguage(selectedLanguage);
     setModalVisible(false); // Hide the dropdown after selection
@@ -30,9 +30,7 @@ const Home = ({ route }) => {
             navigation.navigate({
               name: 'HighlightedCalender',
               params: {
-                // DepartureDate: DepartureDate || '',
-                // returnDate: returnDate || '',
-                language: language, 
+                language: language,
               },
               merge: true,
             })

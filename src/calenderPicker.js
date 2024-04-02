@@ -1,5 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, ImageBackground } from "react-native";
 import startDateIndicator from '../assets/Start.png';
 import endDateIndicator from '../assets/End.png';
@@ -49,15 +49,51 @@ const CustomCalendar = ({ route }) => {
   const { returnDate, DepartureDate } = route.params || {};
   const [selectedStartDate, setSelectedStartDate] = useState(DepartureDate ? DepartureDate : today.toISOString().substring(0, 10));
   const [selectedEndDate, setSelectedEndDate] = useState(returnDate ? returnDate : tomorrow.toISOString().substring(0, 10));
-  
+
+
+
   const flatListRef = useRef(null);
+
+  const getMonthIndex = (monthName) => {
+    const ArabicMonthNames = [
+      'كانُون الثانِي',
+      'شُباط',
+      'آذار',
+      'نَيْسان',
+      'أَيّار',
+      'حَزِيران',
+      'تَمُّوز',
+      'آب',
+      'أَيْلُول',
+      'تِشْرِين الْأَوَّل',
+      'شهر نوفمبر',
+      'كانُون الْأَوَّل',
+    ];
+
+    const EnglishMonthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    return selectedLanguage === 'Arabic' ? ArabicMonthNames.findIndex(name => name === monthName) : EnglishMonthNames.findIndex(name => name === monthName);
+  };
 
   const generateMonthData = (startMonth, numMonths, selectedLanguage) => {
     const months = [];
     let currentDate = new Date(startMonth);
     const endMonth = new Date(startMonth);
     endMonth.setMonth(endMonth.getMonth() + numMonths);
-  
+
     // Function to get month name based on language
     const getMonthName = (monthIndex) => {
       const ArabicMonthNames = [
@@ -74,7 +110,7 @@ const CustomCalendar = ({ route }) => {
         'شهر نوفمبر',
         'كانُون الْأَوَّل',
       ];
-  
+
       const EnglishMonthNames = [
         'January',
         'February',
@@ -89,26 +125,26 @@ const CustomCalendar = ({ route }) => {
         'November',
         'December',
       ];
-  
+
       return selectedLanguage === 'Arabic' ? ArabicMonthNames[monthIndex] : EnglishMonthNames[monthIndex];
     };
-  
+
     while (currentDate < endMonth) {
       const monthData = {
         month: getMonthName(currentDate.getMonth()) + " " + currentDate.getFullYear(), // Concatenate the year
         days: [],
       };
-  
+
       const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
       const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-  
+
       for (let j = 0; j < firstDayOfMonth; j++) {
         monthData.days.push({
           date: null,
           key: `empty-${j}`,
         });
       }
-  
+
       for (let j = 1; j <= lastDayOfMonth.getDate(); j++) {
         const day = new Date(currentDate.getFullYear(), currentDate.getMonth(), j);
         monthData.days.push({
@@ -116,14 +152,29 @@ const CustomCalendar = ({ route }) => {
           key: day.toISOString(),
         });
       }
-  
+
       months.push(monthData);
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
-  
+
     return months;
   };
-  
+
+  useEffect(() => {
+    if (selectedStartDate) {
+      const selectedDate = new Date(selectedStartDate);
+      const selectedMonthIndex = visibleMonths.findIndex(month => {
+        const [monthName, year] = month.month.split(" ");
+        return selectedDate.getMonth() === getMonthIndex(monthName) && selectedDate.getFullYear() === parseInt(year);
+      });
+
+      if (selectedMonthIndex !== -1 && flatListRef.current) {
+        flatListRef.current.scrollToIndex({ index: selectedMonthIndex, animated: true });
+      }
+    }
+  }, [selectedStartDate]);
+
+
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems.length > 0) {
       const { index } = viewableItems[0];
@@ -159,7 +210,7 @@ const CustomCalendar = ({ route }) => {
       if (date === null) {
         return <View style={styles.emptyDateItem} />;
       }
-  
+
       const day = new Date(date);
       const isToday = day.toDateString() === today.toDateString();
       const startDate = selectedStartDate ? new Date(selectedStartDate) : null;
@@ -170,7 +221,7 @@ const CustomCalendar = ({ route }) => {
       const isDisabled = !isToday && day < today;
       const isSelectedPreviously = returnDate && DepartureDate && day >= new Date(returnDate) && day <= new Date(DepartureDate);
       const isBetweenSelectedDates = startDate && endDate && !isSelected && day > startDate && day < endDate;
-  
+
       return (
         <TouchableOpacity
           style={[
@@ -194,9 +245,9 @@ const CustomCalendar = ({ route }) => {
     },
     [today, selectedStartDate, selectedEndDate, returnDate, DepartureDate, handleDatePress]
   );
-  
-  
-  
+
+
+
 
 
 
@@ -263,8 +314,8 @@ const CustomCalendar = ({ route }) => {
         </View>
       </View>
       <FlatList
-       ref={flatListRef}
-       initialNumToRender={2}
+        ref={flatListRef}
+        initialNumToRender={2}
         data={visibleMonths}
         keyExtractor={(item, index) => `month-${index}`}
         renderItem={({ item }) => (
@@ -282,15 +333,26 @@ const CustomCalendar = ({ route }) => {
               keyExtractor={(day) => day.key}
               renderItem={renderDay}
               numColumns={7}
-              columnWrapperStyle={{ marginHorizontal: 0, paddingVertical: 0, }}
+              columnWrapperStyle={{ marginHorizontal: 0, paddingVertical: 0 }}
               showsVerticalScrollIndicator={false}
               shouldItemUpdate={(prev, next) => prev.item.date !== next.item.date}
+              getItemLayout={(data, index) => ({
+                length: 40, // Height of each item
+                offset: 40 * index, // Position of the item
+                index,
+              })}
             />
           </View>
         )}
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewConfigRef.current}
+        onScrollToIndexFailed={(info) => {
+          const wait = new Promise((resolve) => setTimeout(resolve, 200));
+          wait.then(() => {
+            flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+          });
+        }}
       />
       {/* Bottom confirm button------ */}
 
@@ -435,7 +497,7 @@ const styles = StyleSheet.create({
   dateImageStart: {
     position: 'absolute',
     width: "100%",
-    height: 40,   
+    height: 40,
   },
   dateImageEnd: {
     position: 'absolute',
